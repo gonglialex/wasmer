@@ -70,10 +70,61 @@ pub struct Intrinsics<'ctx> {
     pub ctpop_i32: FunctionValue<'ctx>,
     pub ctpop_i64: FunctionValue<'ctx>,
 
+    pub fp_rounding_md: BasicValueEnum<'ctx>,
+    pub fp_exception_md: BasicValueEnum<'ctx>,
+    pub fp_oeq_md: BasicValueEnum<'ctx>,
+    pub fp_ogt_md: BasicValueEnum<'ctx>,
+    pub fp_oge_md: BasicValueEnum<'ctx>,
+    pub fp_olt_md: BasicValueEnum<'ctx>,
+    pub fp_ole_md: BasicValueEnum<'ctx>,
+    pub fp_one_md: BasicValueEnum<'ctx>,
+    pub fp_ord_md: BasicValueEnum<'ctx>,
+    pub fp_ueq_md: BasicValueEnum<'ctx>,
+    pub fp_ugt_md: BasicValueEnum<'ctx>,
+    pub fp_ult_md: BasicValueEnum<'ctx>,
+    pub fp_ule_md: BasicValueEnum<'ctx>,
+    pub fp_une_md: BasicValueEnum<'ctx>,
+    pub fp_uno_md: BasicValueEnum<'ctx>,
+
+    pub add_f32: FunctionValue<'ctx>,
+    pub add_f64: FunctionValue<'ctx>,
+    pub add_f32x4: FunctionValue<'ctx>,
+    pub add_f64x2: FunctionValue<'ctx>,
+
+    pub sub_f32: FunctionValue<'ctx>,
+    pub sub_f64: FunctionValue<'ctx>,
+    pub sub_f32x4: FunctionValue<'ctx>,
+    pub sub_f64x2: FunctionValue<'ctx>,
+
+    pub mul_f32: FunctionValue<'ctx>,
+    pub mul_f64: FunctionValue<'ctx>,
+    pub mul_f32x4: FunctionValue<'ctx>,
+    pub mul_f64x2: FunctionValue<'ctx>,
+
+    pub div_f32: FunctionValue<'ctx>,
+    pub div_f64: FunctionValue<'ctx>,
+    pub div_f32x4: FunctionValue<'ctx>,
+    pub div_f64x2: FunctionValue<'ctx>,
+
     pub sqrt_f32: FunctionValue<'ctx>,
     pub sqrt_f64: FunctionValue<'ctx>,
     pub sqrt_f32x4: FunctionValue<'ctx>,
     pub sqrt_f64x2: FunctionValue<'ctx>,
+
+    pub max_f32: FunctionValue<'ctx>,
+    pub max_f64: FunctionValue<'ctx>,
+    pub max_f32x4: FunctionValue<'ctx>,
+    pub max_f64x2: FunctionValue<'ctx>,
+
+    pub min_f32: FunctionValue<'ctx>,
+    pub min_f64: FunctionValue<'ctx>,
+    pub min_f32x4: FunctionValue<'ctx>,
+    pub min_f64x2: FunctionValue<'ctx>,
+
+    pub cmp_f32: FunctionValue<'ctx>,
+    pub cmp_f64: FunctionValue<'ctx>,
+    pub cmp_f32x4: FunctionValue<'ctx>,
+    pub cmp_f64x2: FunctionValue<'ctx>,
 
     pub ceil_f32: FunctionValue<'ctx>,
     pub ceil_f64: FunctionValue<'ctx>,
@@ -83,6 +134,9 @@ pub struct Intrinsics<'ctx> {
 
     pub trunc_f32: FunctionValue<'ctx>,
     pub trunc_f64: FunctionValue<'ctx>,
+
+    pub fpext_f32: FunctionValue<'ctx>,
+    pub fptrunc_f64: FunctionValue<'ctx>,
 
     pub nearbyint_f32: FunctionValue<'ctx>,
     pub nearbyint_f64: FunctionValue<'ctx>,
@@ -223,6 +277,8 @@ impl<'ctx> Intrinsics<'ctx> {
         let f32_ty = context.f32_type();
         let f64_ty = context.f64_type();
 
+        let i1x4_ty = i1_ty.vec_type(4);
+        let i1x2_ty = i1_ty.vec_type(2);
         let i1x128_ty = i1_ty.vec_type(128);
         let i8x16_ty = i8_ty.vec_type(16);
         let i16x8_ty = i16_ty.vec_type(8);
@@ -277,6 +333,9 @@ impl<'ctx> Intrinsics<'ctx> {
         let externref_ty = funcref_ty;
         let anyref_ty = i8_ptr_ty;
 
+        let md_ty = context.metadata_type();
+        let md_ty_basic = md_ty.as_basic_type_enum();
+
         let ret_i8x16_take_i8x16_i8x16 = i8x16_ty.fn_type(&[i8x16_ty_basic, i8x16_ty_basic], false);
         let ret_i16x8_take_i16x8_i16x8 = i16x8_ty.fn_type(&[i16x8_ty_basic, i16x8_ty_basic], false);
 
@@ -290,6 +349,82 @@ impl<'ctx> Intrinsics<'ctx> {
         let ret_f64_take_f64 = f64_ty.fn_type(&[f64_ty_basic], false);
         let ret_f32x4_take_f32x4 = f32x4_ty.fn_type(&[f32x4_ty_basic], false);
         let ret_f64x2_take_f64x2 = f64x2_ty.fn_type(&[f64x2_ty_basic], false);
+
+        let ret_f32_take_f32_md = f32_ty.fn_type(&[f32_ty_basic, md_ty_basic], false);
+        let ret_f64_take_f64_md = f64_ty.fn_type(&[f64_ty_basic, md_ty_basic], false);
+
+        let ret_f32_take_f64_md_md =
+            f32_ty.fn_type(&[f64_ty_basic, md_ty_basic, md_ty_basic], false);
+        let ret_f64_take_f32_md = f64_ty.fn_type(&[f32_ty_basic, md_ty_basic], false);
+
+        let ret_i1_take_f32_f32_md_md = i1_ty.fn_type(
+            &[f32_ty_basic, f32_ty_basic, md_ty_basic, md_ty_basic],
+            false,
+        );
+        let ret_i1_take_f64_f64_md_md = i1_ty.fn_type(
+            &[f64_ty_basic, f64_ty_basic, md_ty_basic, md_ty_basic],
+            false,
+        );
+        let ret_i1x4_take_f32x4_f32x4_md_md = i1x4_ty.fn_type(
+            &[f32x4_ty_basic, f32x4_ty_basic, md_ty_basic, md_ty_basic],
+            false,
+        );
+        let ret_i1x2_take_f64x2_f64x2_md_md = i1x2_ty.fn_type(
+            &[f64x2_ty_basic, f64x2_ty_basic, md_ty_basic, md_ty_basic],
+            false,
+        );
+
+        let ret_f32_take_f32_md_md =
+            f32_ty.fn_type(&[f32_ty_basic, md_ty_basic, md_ty_basic], false);
+        let ret_f64_take_f64_md_md =
+            f64_ty.fn_type(&[f64_ty_basic, md_ty_basic, md_ty_basic], false);
+        let ret_f32x4_take_f32x4_md_md =
+            f32x4_ty.fn_type(&[f32x4_ty_basic, md_ty_basic, md_ty_basic], false);
+        let ret_f64x2_take_f64x2_md_md =
+            f64x2_ty.fn_type(&[f64x2_ty_basic, md_ty_basic, md_ty_basic], false);
+
+        let ret_f32_take_f32_f32_md =
+            f32_ty.fn_type(&[f32_ty_basic, f32_ty_basic, md_ty_basic], false);
+        let ret_f64_take_f64_f64_md =
+            f64_ty.fn_type(&[f64_ty_basic, f64_ty_basic, md_ty_basic], false);
+        let ret_f32x4_take_f32x4_f32x4_md =
+            f32x4_ty.fn_type(&[f32x4_ty_basic, f32x4_ty_basic, md_ty_basic], false);
+        let ret_f64x2_take_f64x2_f64x2_md =
+            f64x2_ty.fn_type(&[f64x2_ty_basic, f64x2_ty_basic, md_ty_basic], false);
+
+        let ret_f32_take_f32_f32_md_md = f32_ty.fn_type(
+            &[f32_ty_basic, f32_ty_basic, md_ty_basic, md_ty_basic],
+            false,
+        );
+        let ret_f64_take_f64_f64_md_md = f64_ty.fn_type(
+            &[f64_ty_basic, f64_ty_basic, md_ty_basic, md_ty_basic],
+            false,
+        );
+        let ret_f32x4_take_f32x4_f32x4_md_md = f32x4_ty.fn_type(
+            &[f32x4_ty_basic, f32x4_ty_basic, md_ty_basic, md_ty_basic],
+            false,
+        );
+        let ret_f64x2_take_f64x2_f64x2_md_md = f64x2_ty.fn_type(
+            &[f64x2_ty_basic, f64x2_ty_basic, md_ty_basic, md_ty_basic],
+            false,
+        );
+
+        let fp_rounding_md = context.metadata_string("round.tonearest");
+        let fp_exception_md = context.metadata_string("fpexcept.strict");
+
+        let fp_oeq_md = context.metadata_string("oeq");
+        let fp_ogt_md = context.metadata_string("ogt");
+        let fp_oge_md = context.metadata_string("oge");
+        let fp_olt_md = context.metadata_string("olt");
+        let fp_ole_md = context.metadata_string("ole");
+        let fp_one_md = context.metadata_string("one");
+        let fp_ord_md = context.metadata_string("ord");
+        let fp_ueq_md = context.metadata_string("ueq");
+        let fp_ugt_md = context.metadata_string("ugt");
+        let fp_ult_md = context.metadata_string("ult");
+        let fp_ule_md = context.metadata_string("ule");
+        let fp_une_md = context.metadata_string("une");
+        let fp_uno_md = context.metadata_string("uno");
 
         let ret_f32_take_f32_f32 = f32_ty.fn_type(&[f32_ty_basic, f32_ty_basic], false);
         let ret_f64_take_f64_f64 = f64_ty.fn_type(&[f64_ty_basic, f64_ty_basic], false);
@@ -307,22 +442,245 @@ impl<'ctx> Intrinsics<'ctx> {
             ctpop_i32: module.add_function("llvm.ctpop.i32", ret_i32_take_i32, None),
             ctpop_i64: module.add_function("llvm.ctpop.i64", ret_i64_take_i64, None),
 
-            sqrt_f32: module.add_function("llvm.sqrt.f32", ret_f32_take_f32, None),
-            sqrt_f64: module.add_function("llvm.sqrt.f64", ret_f64_take_f64, None),
-            sqrt_f32x4: module.add_function("llvm.sqrt.v4f32", ret_f32x4_take_f32x4, None),
-            sqrt_f64x2: module.add_function("llvm.sqrt.v2f64", ret_f64x2_take_f64x2, None),
+            fp_rounding_md: fp_rounding_md.as_basic_value_enum(),
+            fp_exception_md: fp_exception_md.as_basic_value_enum(),
 
-            ceil_f32: module.add_function("llvm.ceil.f32", ret_f32_take_f32, None),
-            ceil_f64: module.add_function("llvm.ceil.f64", ret_f64_take_f64, None),
+            fp_oeq_md: fp_oeq_md.as_basic_value_enum(),
+            fp_ogt_md: fp_ogt_md.as_basic_value_enum(),
+            fp_oge_md: fp_oge_md.as_basic_value_enum(),
+            fp_olt_md: fp_olt_md.as_basic_value_enum(),
+            fp_ole_md: fp_ole_md.as_basic_value_enum(),
+            fp_one_md: fp_one_md.as_basic_value_enum(),
+            fp_ord_md: fp_ord_md.as_basic_value_enum(),
+            fp_ueq_md: fp_ueq_md.as_basic_value_enum(),
+            fp_ugt_md: fp_ugt_md.as_basic_value_enum(),
+            fp_ult_md: fp_ult_md.as_basic_value_enum(),
+            fp_ule_md: fp_ule_md.as_basic_value_enum(),
+            fp_une_md: fp_une_md.as_basic_value_enum(),
+            fp_uno_md: fp_uno_md.as_basic_value_enum(),
 
-            floor_f32: module.add_function("llvm.floor.f32", ret_f32_take_f32, None),
-            floor_f64: module.add_function("llvm.floor.f64", ret_f64_take_f64, None),
+            add_f32: module.add_function(
+                "llvm.experimental.constrained.fadd.f32",
+                ret_f32_take_f32_f32_md_md,
+                None,
+            ),
+            add_f64: module.add_function(
+                "llvm.experimental.constrained.fadd.f64",
+                ret_f64_take_f64_f64_md_md,
+                None,
+            ),
+            add_f32x4: module.add_function(
+                "llvm.experimental.constrained.fadd.v4f32",
+                ret_f32x4_take_f32x4_f32x4_md_md,
+                None,
+            ),
+            add_f64x2: module.add_function(
+                "llvm.experimental.constrained.fadd.v2f64",
+                ret_f64x2_take_f64x2_f64x2_md_md,
+                None,
+            ),
 
-            trunc_f32: module.add_function("llvm.trunc.f32", ret_f32_take_f32, None),
-            trunc_f64: module.add_function("llvm.trunc.f64", ret_f64_take_f64, None),
+            sub_f32: module.add_function(
+                "llvm.experimental.constrained.fsub.f32",
+                ret_f32_take_f32_f32_md_md,
+                None,
+            ),
+            sub_f64: module.add_function(
+                "llvm.experimental.constrained.fsub.f64",
+                ret_f64_take_f64_f64_md_md,
+                None,
+            ),
+            sub_f32x4: module.add_function(
+                "llvm.experimental.constrained.fsub.v4f32",
+                ret_f32x4_take_f32x4_f32x4_md_md,
+                None,
+            ),
+            sub_f64x2: module.add_function(
+                "llvm.experimental.constrained.fsub.v2f64",
+                ret_f64x2_take_f64x2_f64x2_md_md,
+                None,
+            ),
 
-            nearbyint_f32: module.add_function("llvm.nearbyint.f32", ret_f32_take_f32, None),
-            nearbyint_f64: module.add_function("llvm.nearbyint.f64", ret_f64_take_f64, None),
+            mul_f32: module.add_function(
+                "llvm.experimental.constrained.fmul.f32",
+                ret_f32_take_f32_f32_md_md,
+                None,
+            ),
+            mul_f64: module.add_function(
+                "llvm.experimental.constrained.fmul.f64",
+                ret_f64_take_f64_f64_md_md,
+                None,
+            ),
+            mul_f32x4: module.add_function(
+                "llvm.experimental.constrained.fmul.v4f32",
+                ret_f32x4_take_f32x4_f32x4_md_md,
+                None,
+            ),
+            mul_f64x2: module.add_function(
+                "llvm.experimental.constrained.fmul.v2f64",
+                ret_f64x2_take_f64x2_f64x2_md_md,
+                None,
+            ),
+
+            div_f32: module.add_function(
+                "llvm.experimental.constrained.fdiv.f32",
+                ret_f32_take_f32_f32_md_md,
+                None,
+            ),
+            div_f64: module.add_function(
+                "llvm.experimental.constrained.fdiv.f64",
+                ret_f64_take_f64_f64_md_md,
+                None,
+            ),
+            div_f32x4: module.add_function(
+                "llvm.experimental.constrained.fdiv.v4f32",
+                ret_f32x4_take_f32x4_f32x4_md_md,
+                None,
+            ),
+            div_f64x2: module.add_function(
+                "llvm.experimental.constrained.fdiv.v2f64",
+                ret_f64x2_take_f64x2_f64x2_md_md,
+                None,
+            ),
+
+            sqrt_f32: module.add_function(
+                "llvm.experimental.constrained.sqrt.f32",
+                ret_f32_take_f32_md_md,
+                None,
+            ),
+            sqrt_f64: module.add_function(
+                "llvm.experimental.constrained.sqrt.f64",
+                ret_f64_take_f64_md_md,
+                None,
+            ),
+            sqrt_f32x4: module.add_function(
+                "llvm.experimental.constrained.sqrt.v4f32",
+                ret_f32x4_take_f32x4_md_md,
+                None,
+            ),
+            sqrt_f64x2: module.add_function(
+                "llvm.experimental.constrained.sqrt.v2f64",
+                ret_f64x2_take_f64x2_md_md,
+                None,
+            ),
+
+            max_f32: module.add_function(
+                "llvm.experimental.constrained.maximum.f32",
+                ret_f32_take_f32_f32_md,
+                None,
+            ),
+            max_f64: module.add_function(
+                "llvm.experimental.constrained.maximum.f64",
+                ret_f64_take_f64_f64_md,
+                None,
+            ),
+            max_f32x4: module.add_function(
+                "llvm.experimental.constrained.maximum.v4f32",
+                ret_f32x4_take_f32x4_f32x4_md,
+                None,
+            ),
+            max_f64x2: module.add_function(
+                "llvm.experimental.constrained.maximum.v2f64",
+                ret_f64x2_take_f64x2_f64x2_md,
+                None,
+            ),
+
+            min_f32: module.add_function(
+                "llvm.experimental.constrained.minimum.f32",
+                ret_f32_take_f32_f32_md,
+                None,
+            ),
+            min_f64: module.add_function(
+                "llvm.experimental.constrained.minimum.f64",
+                ret_f64_take_f64_f64_md,
+                None,
+            ),
+            min_f32x4: module.add_function(
+                "llvm.experimental.constrained.minimum.v4f32",
+                ret_f32x4_take_f32x4_f32x4_md,
+                None,
+            ),
+            min_f64x2: module.add_function(
+                "llvm.experimental.constrained.minimum.v2f64",
+                ret_f64x2_take_f64x2_f64x2_md,
+                None,
+            ),
+
+            cmp_f32: module.add_function(
+                "llvm.experimental.constrained.fcmp.f32",
+                ret_i1_take_f32_f32_md_md,
+                None,
+            ),
+            cmp_f64: module.add_function(
+                "llvm.experimental.constrained.fcmp.f64",
+                ret_i1_take_f64_f64_md_md,
+                None,
+            ),
+            cmp_f32x4: module.add_function(
+                "llvm.experimental.constrained.fcmp.v4f32",
+                ret_i1x4_take_f32x4_f32x4_md_md,
+                None,
+            ),
+            cmp_f64x2: module.add_function(
+                "llvm.experimental.constrained.fcmp.v2f64",
+                ret_i1x2_take_f64x2_f64x2_md_md,
+                None,
+            ),
+
+            ceil_f32: module.add_function(
+                "llvm.experimental.constrained.ceil.f32",
+                ret_f32_take_f32_md,
+                None,
+            ),
+            ceil_f64: module.add_function(
+                "llvm.experimental.constrained.ceil.f64",
+                ret_f64_take_f64_md,
+                None,
+            ),
+
+            floor_f32: module.add_function(
+                "llvm.experimental.constrained.floor.f32",
+                ret_f32_take_f32_md,
+                None,
+            ),
+            floor_f64: module.add_function(
+                "llvm.experimental.constrained.floor.f64",
+                ret_f64_take_f64_md,
+                None,
+            ),
+
+            trunc_f32: module.add_function(
+                "llvm.experimental.constrained.trunc.f32",
+                ret_f32_take_f32_md,
+                None,
+            ),
+            trunc_f64: module.add_function(
+                "llvm.experimental.constrained.trunc.f64",
+                ret_f64_take_f64_md,
+                None,
+            ),
+
+            fpext_f32: module.add_function(
+                "llvm.experimental.constrained.fpext.f64.f32",
+                ret_f64_take_f32_md,
+                None,
+            ),
+            fptrunc_f64: module.add_function(
+                "llvm.experimental.constrained.fptrunc.f32.f64",
+                ret_f32_take_f64_md_md,
+                None,
+            ),
+
+            nearbyint_f32: module.add_function(
+                "llvm.experimental.constrained.nearbyint.f32",
+                ret_f32_take_f32_md_md,
+                None,
+            ),
+            nearbyint_f64: module.add_function(
+                "llvm.experimental.constrained.nearbyint.f64",
+                ret_f64_take_f64_md_md,
+                None,
+            ),
 
             fabs_f32: module.add_function("llvm.fabs.f32", ret_f32_take_f32, None),
             fabs_f64: module.add_function("llvm.fabs.f64", ret_f64_take_f64, None),

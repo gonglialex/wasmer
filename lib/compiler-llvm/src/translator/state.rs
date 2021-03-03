@@ -129,13 +129,6 @@ impl ExtraInfo {
     pub const fn is_arithmetic_f64(&self) -> bool {
         self.state & ExtraInfo::arithmetic_f64().state != 0
     }
-
-    pub const fn strip_pending(&self) -> ExtraInfo {
-        ExtraInfo {
-            state: self.state
-                & !(ExtraInfo::pending_f32_nan().state | ExtraInfo::pending_f64_nan().state),
-        }
-    }
 }
 
 // Union two ExtraInfos.
@@ -298,20 +291,6 @@ impl<'ctx> State<'ctx> {
     pub fn pop2(&mut self) -> Result<(BasicValueEnum<'ctx>, BasicValueEnum<'ctx>), CompileError> {
         let v2 = self.pop1()?;
         let v1 = self.pop1()?;
-        Ok((v1, v2))
-    }
-
-    pub fn pop2_extra(
-        &mut self,
-    ) -> Result<
-        (
-            (BasicValueEnum<'ctx>, ExtraInfo),
-            (BasicValueEnum<'ctx>, ExtraInfo),
-        ),
-        CompileError,
-    > {
-        let v2 = self.pop1_extra()?;
-        let v1 = self.pop1_extra()?;
         Ok((v1, v2))
     }
 

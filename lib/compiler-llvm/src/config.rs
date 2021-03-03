@@ -40,7 +40,6 @@ pub trait LLVMCallbacks: Debug + Send + Sync {
 
 #[derive(Debug, Clone, MemoryUsage)]
 pub struct LLVM {
-    pub(crate) enable_nan_canonicalization: bool,
     pub(crate) enable_verifier: bool,
     #[loupe(skip)]
     pub(crate) opt_level: LLVMOptLevel,
@@ -56,22 +55,12 @@ impl LLVM {
     /// specified.
     pub fn new() -> Self {
         Self {
-            enable_nan_canonicalization: false,
             enable_verifier: false,
             opt_level: LLVMOptLevel::Aggressive,
             is_pic: false,
             callbacks: None,
             middlewares: vec![],
         }
-    }
-
-    /// Enable NaN canonicalization.
-    ///
-    /// NaN canonicalization is useful when trying to run WebAssembly
-    /// deterministically across different architectures.
-    pub fn canonicalize_nans(&mut self, enable: bool) -> &mut Self {
-        self.enable_nan_canonicalization = enable;
-        self
     }
 
     /// The optimization levels when optimizing the IR.

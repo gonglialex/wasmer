@@ -45,6 +45,7 @@ pub fn run_wast(wast_path: &str, compiler: &str) -> anyhow::Result<()> {
         "Running wast `{}` with the {} compiler",
         wast_path, compiler
     );
+
     let try_nan_canonicalization = wast_path.contains("nan-canonicalization");
     let mut features = Features::default();
     let is_bulkmemory = wast_path.contains("bulk-memory");

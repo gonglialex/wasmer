@@ -53,15 +53,6 @@ impl Cranelift {
         }
     }
 
-    /// Enable NaN canonicalization.
-    ///
-    /// NaN canonicalization is useful when trying to run WebAssembly
-    /// deterministically across different architectures.
-    pub fn canonicalize_nans(&mut self, enable: bool) -> &mut Self {
-        self.enable_nan_canonicalization = enable;
-        self
-    }
-
     /// Enable SIMD support.
     pub fn enable_simd(&mut self, enable: bool) -> &mut Self {
         self.enable_simd = enable;
@@ -195,6 +186,14 @@ impl CompilerConfig for Cranelift {
 
     fn enable_verifier(&mut self) {
         self.enable_verifier = true;
+    }
+
+    fn enable_nan_canonicalization(&mut self) {
+        self.enable_nan_canonicalization = true;
+    }
+
+    fn canonicalize_nans(&mut self, enable: bool) {
+        self.enable_nan_canonicalization = enable;
     }
 
     /// Transform it into the compiler
