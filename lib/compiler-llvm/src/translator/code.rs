@@ -1762,52 +1762,52 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
             }
 
             Operator::I8x16Splat => {
-                let (v, i) = self.state.pop1_extra()?;
+                let v = self.state.pop1()?;
                 let v = v.into_int_value();
                 let v = self
                     .builder
                     .build_int_truncate(v, self.intrinsics.i8_ty, "");
                 let res = self.splat_vector(v.as_basic_value_enum(), self.intrinsics.i8x16_ty);
                 let res = self.builder.build_bitcast(res, self.intrinsics.i128_ty, "");
-                self.state.push1_extra(res, i);
+                self.state.push1(res);
             }
             Operator::I16x8Splat => {
-                let (v, i) = self.state.pop1_extra()?;
+                let v = self.state.pop1()?;
                 let v = v.into_int_value();
                 let v = self
                     .builder
                     .build_int_truncate(v, self.intrinsics.i16_ty, "");
                 let res = self.splat_vector(v.as_basic_value_enum(), self.intrinsics.i16x8_ty);
                 let res = self.builder.build_bitcast(res, self.intrinsics.i128_ty, "");
-                self.state.push1_extra(res, i);
+                self.state.push1(res);
             }
             Operator::I32x4Splat => {
-                let (v, i) = self.state.pop1_extra()?;
+                let v = self.state.pop1()?;
                 let res = self.splat_vector(v, self.intrinsics.i32x4_ty);
                 let res = self.builder.build_bitcast(res, self.intrinsics.i128_ty, "");
-                self.state.push1_extra(res, i);
+                self.state.push1(res);
             }
             Operator::I64x2Splat => {
-                let (v, i) = self.state.pop1_extra()?;
+                let v = self.state.pop1()?;
                 let res = self.splat_vector(v, self.intrinsics.i64x2_ty);
                 let res = self.builder.build_bitcast(res, self.intrinsics.i128_ty, "");
-                self.state.push1_extra(res, i);
+                self.state.push1(res);
             }
             Operator::F32x4Splat => {
-                let (v, i) = self.state.pop1_extra()?;
+                let v = self.state.pop1()?;
                 let res = self.splat_vector(v, self.intrinsics.f32x4_ty);
                 let res = self.builder.build_bitcast(res, self.intrinsics.i128_ty, "");
                 // The spec is unclear, we interpret splat as preserving NaN
                 // payload bits.
-                self.state.push1_extra(res, i);
+                self.state.push1(res);
             }
             Operator::F64x2Splat => {
-                let (v, i) = self.state.pop1_extra()?;
+                let v = self.state.pop1()?;
                 let res = self.splat_vector(v, self.intrinsics.f64x2_ty);
                 let res = self.builder.build_bitcast(res, self.intrinsics.i128_ty, "");
                 // The spec is unclear, we interpret splat as preserving NaN
                 // payload bits.
-                self.state.push1_extra(res, i);
+                self.state.push1(res);
             }
 
             // Operate on self.locals.
