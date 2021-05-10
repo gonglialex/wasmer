@@ -107,7 +107,6 @@ impl FuncTranslator {
         func.set_linkage(Linkage::DLLExport);
         func.as_global_value()
             .set_dll_storage_class(DLLStorageClass::Export);
-
         let entry = self.ctx.append_basic_block(func, "entry");
         let start_of_code = self.ctx.append_basic_block(func, "start_of_code");
         let return_ = self.ctx.append_basic_block(func, "return");
@@ -788,34 +787,48 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
     }
 
     // Replaces any NaN with the canonical QNaN, otherwise leaves the value alone.
-    fn canonicalize_nans(&self, value: BasicValueEnum<'ctx>) -> BasicValueEnum<'ctx> {
-        let f_ty = value.get_type();
-        if f_ty.is_vector_type() {
-            let value = value.into_vector_value();
-            let f_ty = f_ty.into_vector_type();
-            let zero = f_ty.const_zero();
-            let nan_cmp = self
-                .builder
-                .build_float_compare(FloatPredicate::UNO, value, zero, "nan");
-            let canonical_qnan = f_ty
-                .get_element_type()
-                .into_float_type()
-                .const_float(std::f64::NAN);
-            let canonical_qnan = self.splat_vector(canonical_qnan.as_basic_value_enum(), f_ty);
-            self.builder
-                .build_select(nan_cmp, canonical_qnan, value, "")
-                .as_basic_value_enum()
+    fn quiet_nan(&self, value: BasicValueEnum<'ctx>) -> BasicValueEnum<'ctx> {
+        let intrinsic = if value
+            .get_type()
+            .eq(&self.intrinsics.f32_ty.as_basic_type_enum())
+        {
+            Some(self.intrinsics.add_f32)
+        } else if value
+            .get_type()
+            .eq(&self.intrinsics.f64_ty.as_basic_type_enum())
+        {
+            Some(self.intrinsics.add_f64)
+        } else if value
+            .get_type()
+            .eq(&self.intrinsics.f32x4_ty.as_basic_type_enum())
+        {
+            Some(self.intrinsics.add_f32x4)
+        } else if value
+            .get_type()
+            .eq(&self.intrinsics.f64x2_ty.as_basic_type_enum())
+        {
+            Some(self.intrinsics.add_f64x2)
         } else {
-            let value = value.into_float_value();
-            let f_ty = f_ty.into_float_type();
-            let zero = f_ty.const_zero();
-            let nan_cmp = self
+            None
+        };
+
+        match intrinsic {
+            Some(intrinsic) => self
                 .builder
-                .build_float_compare(FloatPredicate::UNO, value, zero, "nan");
-            let canonical_qnan = f_ty.const_float(std::f64::NAN);
-            self.builder
-                .build_select(nan_cmp, canonical_qnan, value, "")
-                .as_basic_value_enum()
+                .build_call(
+                    intrinsic,
+                    &[
+                        value,
+                        value.get_type().const_zero(),
+                        self.intrinsics.fp_rounding_md,
+                        self.intrinsics.fp_exception_md,
+                    ],
+                    "",
+                )
+                .try_as_basic_value()
+                .left()
+                .unwrap(),
+            None => value,
         }
     }
 
@@ -3258,8 +3271,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
              ***************************/
             Operator::F32Add => {
                 let (v1, v2) = self.state.pop2()?;
-                let v1 = self.canonicalize_nans(v1);
-                let v2 = self.canonicalize_nans(v2);
                 let res = self
                     .builder
                     .build_call(
@@ -3280,8 +3291,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
             }
             Operator::F64Add => {
                 let (v1, v2) = self.state.pop2()?;
-                let v1 = self.canonicalize_nans(v1);
-                let v2 = self.canonicalize_nans(v2);
                 let res = self
                     .builder
                     .build_call(
@@ -3351,8 +3360,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
             Operator::F32Sub => {
                 let (v1, v2) = self.state.pop2()?;
-                let v1 = self.canonicalize_nans(v1);
-                let v2 = self.canonicalize_nans(v2);
                 let res = self
                     .builder
                     .build_call(
@@ -3373,8 +3380,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
             }
             Operator::F64Sub => {
                 let (v1, v2) = self.state.pop2()?;
-                let v1 = self.canonicalize_nans(v1);
-                let v2 = self.canonicalize_nans(v2);
                 let res = self
                     .builder
                     .build_call(
@@ -3427,8 +3432,8 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
                     .build_call(
                         self.intrinsics.sub_f64x2,
                         &[
-                            self.canonicalize_nans(v1.as_basic_value_enum()),
-                            self.canonicalize_nans(v2.as_basic_value_enum()),
+                            v1.as_basic_value_enum(),
+                            v2.as_basic_value_enum(),
                             self.intrinsics.fp_rounding_md,
                             self.intrinsics.fp_exception_md,
                         ],
@@ -3444,8 +3449,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
             Operator::F32Mul => {
                 let (v1, v2) = self.state.pop2()?;
-                let v1 = self.canonicalize_nans(v1);
-                let v2 = self.canonicalize_nans(v2);
                 let res = self
                     .builder
                     .build_call(
@@ -3466,8 +3469,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
             }
             Operator::F64Mul => {
                 let (v1, v2) = self.state.pop2()?;
-                let v1 = self.canonicalize_nans(v1);
-                let v2 = self.canonicalize_nans(v2);
                 let res = self
                     .builder
                     .build_call(
@@ -3537,8 +3538,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
             Operator::F32Div => {
                 let (v1, v2) = self.state.pop2()?;
-                let v1 = self.canonicalize_nans(v1);
-                let v2 = self.canonicalize_nans(v2);
                 let res = self
                     .builder
                     .build_call(
@@ -3559,8 +3558,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
             }
             Operator::F64Div => {
                 let (v1, v2) = self.state.pop2()?;
-                let v1 = self.canonicalize_nans(v1);
-                let v2 = self.canonicalize_nans(v2);
                 let res = self
                     .builder
                     .build_call(
@@ -3630,7 +3627,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
             Operator::F32Sqrt => {
                 let input = self.state.pop1()?;
-                let input = self.canonicalize_nans(input);
                 let res = self
                     .builder
                     .build_call(
@@ -3650,7 +3646,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
             }
             Operator::F64Sqrt => {
                 let input = self.state.pop1()?;
-                let input = self.canonicalize_nans(input);
                 let res = self
                     .builder
                     .build_call(
@@ -3786,10 +3781,10 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
                 let res = self.builder.build_select(
                     v1_is_nan,
-                    self.canonicalize_nans(v1),
+                    self.quiet_nan(v1),
                     self.builder.build_select(
                         v2_is_nan,
-                        self.canonicalize_nans(v2),
+                        self.quiet_nan(v2),
                         self.builder.build_select(
                             v1_lt_v2,
                             v1,
@@ -3893,10 +3888,10 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
                 let res = self.builder.build_select(
                     v1_is_nan,
-                    self.canonicalize_nans(v1),
+                    self.quiet_nan(v1),
                     self.builder.build_select(
                         v2_is_nan,
-                        self.canonicalize_nans(v2),
+                        self.quiet_nan(v2),
                         self.builder.build_select(
                             v1_lt_v2,
                             v1,
@@ -4002,11 +3997,11 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
                 let res = self.builder.build_select(
                     v1_is_nan,
-                    self.canonicalize_nans(v1).into_vector_value(),
+                    self.quiet_nan(v1).into_vector_value(),
                     self.builder
                         .build_select(
                             v2_is_nan,
-                            self.canonicalize_nans(v2).into_vector_value(),
+                            self.quiet_nan(v2).into_vector_value(),
                             self.builder
                                 .build_select(
                                     v1_lt_v2,
@@ -4116,11 +4111,11 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
                 let res = self.builder.build_select(
                     v1_is_nan,
-                    self.canonicalize_nans(v1).into_vector_value(),
+                    self.quiet_nan(v1).into_vector_value(),
                     self.builder
                         .build_select(
                             v2_is_nan,
-                            self.canonicalize_nans(v2).into_vector_value(),
+                            self.quiet_nan(v2).into_vector_value(),
                             self.builder
                                 .build_select(
                                     v1_lt_v2,
@@ -4229,10 +4224,10 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
                 let res = self.builder.build_select(
                     v1_is_nan,
-                    self.canonicalize_nans(v1),
+                    self.quiet_nan(v1),
                     self.builder.build_select(
                         v2_is_nan,
-                        self.canonicalize_nans(v2),
+                        self.quiet_nan(v2),
                         self.builder.build_select(
                             v1_lt_v2,
                             v2,
@@ -4336,10 +4331,10 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
                 let res = self.builder.build_select(
                     v1_is_nan,
-                    self.canonicalize_nans(v1),
+                    self.quiet_nan(v1),
                     self.builder.build_select(
                         v2_is_nan,
-                        self.canonicalize_nans(v2),
+                        self.quiet_nan(v2),
                         self.builder.build_select(
                             v1_lt_v2,
                             v2,
@@ -4445,11 +4440,11 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
                 let res = self.builder.build_select(
                     v1_is_nan,
-                    self.canonicalize_nans(v1).into_vector_value(),
+                    self.quiet_nan(v1).into_vector_value(),
                     self.builder
                         .build_select(
                             v2_is_nan,
-                            self.canonicalize_nans(v2).into_vector_value(),
+                            self.quiet_nan(v2).into_vector_value(),
                             self.builder
                                 .build_select(
                                     v1_lt_v2,
@@ -4559,11 +4554,11 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
                 let res = self.builder.build_select(
                     v1_is_nan,
-                    self.canonicalize_nans(v1).into_vector_value(),
+                    self.quiet_nan(v1).into_vector_value(),
                     self.builder
                         .build_select(
                             v2_is_nan,
-                            self.canonicalize_nans(v2).into_vector_value(),
+                            self.quiet_nan(v2).into_vector_value(),
                             self.builder
                                 .build_select(
                                     v1_lt_v2,
@@ -4601,7 +4596,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
             Operator::F32Ceil => {
                 let input = self.state.pop1()?;
-                let input = self.canonicalize_nans(input);
                 let res = self
                     .builder
                     .build_call(
@@ -4617,7 +4611,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
             }
             Operator::F64Ceil => {
                 let input = self.state.pop1()?;
-                let input = self.canonicalize_nans(input);
                 let res = self
                     .builder
                     .build_call(
@@ -4634,7 +4627,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
             Operator::F32Floor => {
                 let input = self.state.pop1()?;
-                let input = self.canonicalize_nans(input);
                 let res = self
                     .builder
                     .build_call(
@@ -4650,7 +4642,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
             }
             Operator::F64Floor => {
                 let input = self.state.pop1()?;
-                let input = self.canonicalize_nans(input);
                 let res = self
                     .builder
                     .build_call(
@@ -4667,7 +4658,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
             Operator::F32Trunc => {
                 let input = self.state.pop1()?;
-                let input = self.canonicalize_nans(input);
                 let res = self
                     .builder
                     .build_call(
@@ -4683,7 +4673,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
             }
             Operator::F64Trunc => {
                 let input = self.state.pop1()?;
-                let input = self.canonicalize_nans(input);
                 let res = self
                     .builder
                     .build_call(
@@ -4700,7 +4689,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
 
             Operator::F32Nearest => {
                 let input = self.state.pop1()?;
-                let input = self.canonicalize_nans(input);
                 let res = self
                     .builder
                     .build_call(
@@ -4720,7 +4708,6 @@ impl<'ctx, 'a> LLVMFunctionCodeGenerator<'ctx, 'a> {
             }
             Operator::F64Nearest => {
                 let input = self.state.pop1()?;
-                let input = self.canonicalize_nans(input);
                 let res = self
                     .builder
                     .build_call(
